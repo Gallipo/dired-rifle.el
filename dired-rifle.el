@@ -93,6 +93,31 @@ output gets discarded."
                        "--" path))
     (split-string (buffer-string) "\n" t)))
 
+(defun dired-rifle--group-mime-types (file-paths)
+  "Group a list of file-path according to there MIME-types.
+
+FILE-PATH is a list of strings representing absotute filepaths.
+Returns a list of lists. The sublists hold only one MIME-Type."
+
+  ;; construct an alist of the form (MIME-TYPE . FILE-NAME)
+  (let ((types (mapcar
+                (lambda (fn)
+                  (cons (replace-regexp-in-string
+                         "/.*\n$" ""
+                         (shell-command-to-string (format "file --mime-type -Lb \"%s\"" fn)))
+                        fn))
+                file-paths))
+        (result))
+
+    ;; construct a list of lists, where the sublists hold filenames of the same MIME-type
+    (dolist (x types)
+      (let* ((key (car x))
+             (vals (assoc key result)))
+        (if (null vals)
+            (setq result (cons (list key (cdr x)) result))
+          (setcdr vals (cons (cdr x) (cdr vals))))))
+    (mapcar (lambda (e) (nreverse (cdr e))) result)))
+
 ;;;###autoload
 (defun dired-rifle (arg)
   "Call rifle(1) on the currently focused file in dired, or the
